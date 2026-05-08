@@ -358,6 +358,8 @@ Item {
                 if (Math.abs(mouse.x - pressX) + Math.abs(mouse.y - pressY) > 4)
                     didDrag = true
 
+                var needsRepaint = false
+
                 if (mapArea.dragIp !== "") {
                     var w = mapCanvas.toWorld(mouse.x, mouse.y)
                     for (var i = 0; i < mapCanvas.nodes.length; i++) {
@@ -368,9 +370,11 @@ Item {
                             break
                         }
                     }
+                    needsRepaint = true
                 } else if (mapArea.panning) {
                     mapCanvas.offsetX = mapArea.panOffX0 + (mouse.x - mapArea.panStartX)
                     mapCanvas.offsetY = mapArea.panOffY0 + (mouse.y - mapArea.panStartY)
+                    needsRepaint = true
                 }
 
                 // Hover — only repaint if the hovered node changed
@@ -382,8 +386,10 @@ Item {
                 if (newIp !== mapArea.hoveredIp) {
                     mapArea.hoveredIp   = newIp
                     mapArea.hoveredNode = hn
-                    mapCanvas.requestPaint()
+                    needsRepaint = true
                 }
+
+                if (needsRepaint) mapCanvas.requestPaint()
             }
 
             onReleased: (mouse) => {
@@ -395,6 +401,8 @@ Item {
                     appController.setDisplayFilter(ip !== "" ? "ip.src == " + ip : "")
                     mapCanvas.requestPaint()
                 }
+                // Restart simulation so other nodes can settle around the new position
+                if (mapArea.dragIp !== "") simTimer.restart()
                 mapArea.dragIp  = ""
                 mapArea.panning = false
             }
