@@ -1,6 +1,6 @@
 # OpenShark
 
-A Tesla-aesthetic network packet analyzer built with Qt6/QML and libpcap.
+A modern, dark-themed network packet analyzer built with Qt6/QML and libpcap.
 
 ![Live capture](assets/live.png)
 
