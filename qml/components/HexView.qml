@@ -57,8 +57,8 @@ Flickable {
         onPaint: {
             var ctx   = getContext("2d")
             var bytes = root.rawBytes
+            if (!bytes || bytes.length === 0) { ctx.clearRect(0, 0, width, height); return }
             var n     = bytes.length
-            if (n === 0) return
 
             ctx.clearRect(0, 0, width, height)
             ctx.font = "11px Menlo, Courier, monospace"
