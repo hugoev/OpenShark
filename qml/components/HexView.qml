@@ -18,7 +18,7 @@ Flickable {
     onHighlightOffsetChanged: scrollToHighlight()
 
     function scrollToHighlight() {
-        if (highlightOffset < 0 || rawBytes.length === 0) return
+        if (highlightOffset < 0 || !rawBytes || rawBytes.length === 0) return
         var row = Math.floor(highlightOffset / 16)
         var y   = row * metrics.rowH
         if (y < contentY)
@@ -42,7 +42,7 @@ Flickable {
     Canvas {
         id: canvas
         width:  metrics.totalW
-        height: Math.ceil(root.rawBytes.length / 16) * metrics.rowH + 4
+        height: Math.ceil((root.rawBytes ? root.rawBytes.length : 0) / 16) * metrics.rowH + 4
 
         // Repaint whenever data or highlight changes
         onAvailableChanged: requestPaint()
