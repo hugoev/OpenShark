@@ -10,8 +10,9 @@ Rectangle {
     signal closed()
 
     color: Qt.rgba(0, 0, 0, 0.82)
-    visible: streamData !== null
-    opacity: visible ? 1 : 0
+    opacity: streamData !== null ? 1.0 : 0.0
+    visible: opacity > 0
+    enabled: streamData !== null
     Behavior on opacity { NumberAnimation { duration: Theme.animNormal } }
 
     // Click outside to close

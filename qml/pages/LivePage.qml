@@ -279,7 +279,7 @@ Item {
 
                 property bool stickToBottom: true
                 onCountChanged:    if (stickToBottom) Qt.callLater(() => packetList.positionViewAtEnd())
-                onMovementStarted: stickToBottom = atYEnd
+                onMovementStarted: stickToBottom = false
                 onAtYEndChanged:   if (atYEnd) stickToBottom = true
 
                 ScrollBar.vertical: ScrollBar {
