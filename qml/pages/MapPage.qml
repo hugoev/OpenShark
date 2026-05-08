@@ -407,8 +407,16 @@ Item {
                     appController.setDisplayFilter(ip !== "" ? "ip.src == " + ip : "")
                     mapCanvas.requestPaint()
                 }
-                // Restart simulation so other nodes can settle around the new position
-                if (mapArea.dragIp !== "") simTimer.restart()
+                if (mapArea.dragIp !== "") {
+                    // Unpin so the simulation can pull the node back to equilibrium
+                    for (var i = 0; i < mapCanvas.nodes.length; i++) {
+                        if (mapCanvas.nodes[i].ip === mapArea.dragIp) {
+                            mapCanvas.nodes[i].pinned = false
+                            break
+                        }
+                    }
+                    simTimer.restart()
+                }
                 mapArea.dragIp  = ""
                 mapArea.panning = false
             }
