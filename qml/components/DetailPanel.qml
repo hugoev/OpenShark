@@ -13,11 +13,32 @@ Item {
 
     signal followStreamRequested(var streamData)
 
-    // Highlight state driven by field clicks
     property int hlOffset: -1
     property int hlLength: 0
+    property var collapsedLayers: ({})
 
-    onPacketIndexChanged: { hlOffset = -1; hlLength = 0 }
+    onPacketIndexChanged: {
+        hlOffset = -1
+        hlLength = 0
+        collapsedLayers = {}
+    }
+
+    function protocolAccentColor(proto) {
+        switch (proto) {
+        case "TCP":      return "#2979ff"
+        case "UDP":      return "#00bcd4"
+        case "TLS":      return "#7c4dff"
+        case "DNS":      return "#ff9100"
+        case "HTTP":     return "#00c853"
+        case "ICMP":     return "#e31937"
+        case "ICMPv6":   return "#f44336"
+        case "ARP":      return "#ff6d00"
+        case "IPv4":     return "#546e7a"
+        case "IPv6":     return "#455a64"
+        case "Ethernet": return "#37474f"
+        default:         return "#616161"
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -28,14 +49,34 @@ Item {
             height: 1; color: Theme.borderSubtle
         }
 
-        RowLayout {
+        SplitView {
             anchors { fill: parent; topMargin: Theme.spacingSM }
-            spacing: 0
+            orientation: Qt.Horizontal
+
+            handle: Item {
+                id: splitHandle
+                implicitWidth: 7
+
+                HoverHandler { cursorShape: Qt.SplitHCursor }
+
+                Rectangle {
+                    anchors {
+                        horizontalCenter: parent.horizontalCenter
+                        top: parent.top; bottom: parent.bottom
+                        topMargin: Theme.spacingSM; bottomMargin: Theme.spacingSM
+                    }
+                    width: 1
+                    color: splitHandle.SplitHandle.pressed  ? Theme.accentCyan
+                         : splitHandle.SplitHandle.hovered  ? Theme.borderActive
+                         :                                    Theme.borderSubtle
+                    Behavior on color { ColorAnimation { duration: Theme.animFast } }
+                }
+            }
 
             // ── Layer / field tree (left pane) ─────────────────────────────
             ScrollView {
-                Layout.fillHeight: true
-                Layout.preferredWidth: parent.width * 0.52
+                SplitView.preferredWidth: parent.width * 0.50
+                SplitView.minimumWidth:   160
                 padding: Theme.spacingSM
                 clip: true
                 contentWidth: availableWidth
@@ -48,27 +89,88 @@ Item {
                         model: root.detail ? root.detail.layers : []
 
                         Rectangle {
+                            id: layerCard
+                            property bool isCollapsed: root.collapsedLayers[index] === true
                             width:  parent.width
-                            height: layerCol.implicitHeight + 20
+                            height: isCollapsed
+                                    ? layerHeader.height
+                                    : layerHeader.height + fieldsCol.implicitHeight + 16
                             radius: Theme.radiusSM
                             color:  Theme.bgCard
                             border.color: Theme.borderSubtle
                             border.width: 1
+                            clip: true
 
-                            Column {
-                                id: layerCol
-                                anchors { fill: parent; margins: 10 }
-                                spacing: 2
+                            Behavior on height {
+                                NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutCubic }
+                            }
 
-                                // Layer header
+                            // Protocol accent bar
+                            Rectangle {
+                                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                                width: 3
+                                color: root.protocolAccentColor(modelData.protocol)
+                            }
+
+                            // Layer header row
+                            Item {
+                                id: layerHeader
+                                anchors { left: parent.left; right: parent.right; top: parent.top }
+                                height: 34
+
+                                Rectangle {
+                                    anchors { fill: parent; leftMargin: 3 }
+                                    radius: Theme.radiusSM
+                                    color: headerMa.containsMouse ? Theme.bgCardHover : "transparent"
+                                    Behavior on color { ColorAnimation { duration: Theme.animFast } }
+                                }
+
                                 Text {
+                                    anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+                                    text:  layerCard.isCollapsed ? "▶" : "▼"
+                                    color: Theme.textMuted
+                                    font.pixelSize: 8
+                                }
+
+                                Text {
+                                    anchors { left: parent.left; leftMargin: 26; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
                                     text:  modelData.label
                                     color: Theme.textPrimary
                                     font { family: Theme.fontFamily; pixelSize: Theme.fontSizeSM; weight: Font.DemiBold }
-                                    bottomPadding: 4
+                                    elide: Text.ElideRight
                                 }
 
-                                // Field rows
+                                MouseArea {
+                                    id: headerMa
+                                    anchors { fill: parent; leftMargin: 3 }
+                                    hoverEnabled: true
+                                    onClicked: {
+                                        var c = Object.assign({}, root.collapsedLayers)
+                                        c[index] = !c[index]
+                                        root.collapsedLayers = c
+                                    }
+                                }
+                            }
+
+                            // Divider under header
+                            Rectangle {
+                                anchors { left: parent.left; leftMargin: 3; right: parent.right; top: layerHeader.bottom }
+                                height: 1
+                                color: Theme.borderSubtle
+                                opacity: layerCard.isCollapsed ? 0 : 1
+                                Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
+                            }
+
+                            // Field rows
+                            Column {
+                                id: fieldsCol
+                                anchors {
+                                    left: parent.left; leftMargin: 4
+                                    right: parent.right; rightMargin: 4
+                                    top: layerHeader.bottom; topMargin: 6
+                                }
+                                spacing: 1
+
                                 Repeater {
                                     model: modelData.fields
 
@@ -80,31 +182,33 @@ Item {
                                         color: {
                                             if (root.hlOffset >= 0 &&
                                                 modelData.absoluteOffset === root.hlOffset &&
-                                                modelData.byteLength === root.hlLength)
+                                                modelData.byteLength    === root.hlLength)
                                                 return Qt.rgba(0, 0.83, 1, 0.12)
                                             return fieldMa.containsMouse ? Theme.bgCardHover : "transparent"
                                         }
                                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                                         Row {
-                                            anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
+                                            anchors { fill: parent; leftMargin: 8; rightMargin: 6 }
                                             spacing: 8
+
                                             Text {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 text:  modelData.name + ":"
                                                 color: Theme.textMuted
                                                 font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
-                                                width: 120; elide: Text.ElideRight
+                                                width: 110; elide: Text.ElideRight
                                             }
+
                                             Text {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 text:  modelData.value
                                                 color: (root.hlOffset >= 0 &&
                                                         modelData.absoluteOffset === root.hlOffset)
                                                        ? Theme.accentCyan : Theme.textPrimary
-                                                font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
+                                                font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeXS }
                                                 elide: Text.ElideRight
-                                                width: parent.width - 134
+                                                width: parent.width - 126
                                                 Behavior on color { ColorAnimation { duration: Theme.animFast } }
                                             }
                                         }
@@ -132,18 +236,10 @@ Item {
                 }
             }
 
-            // Vertical divider
-            Rectangle {
-                Layout.fillHeight: true
-                Layout.topMargin:    Theme.spacingSM
-                Layout.bottomMargin: Theme.spacingSM
-                width: 1; color: Theme.borderSubtle
-            }
-
             // ── Hex view (right pane) ──────────────────────────────────────
             Item {
-                Layout.fillHeight: true
-                Layout.fillWidth:  true
+                SplitView.fillWidth:  true
+                SplitView.minimumWidth: 200
 
                 // Header strip
                 Rectangle {
