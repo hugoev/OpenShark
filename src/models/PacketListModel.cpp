@@ -79,10 +79,10 @@ void PacketListModel::appendBatch(const std::vector<DissectedPacket> &batch)
     int base = int(m_all.size());
     m_all.reserve(m_all.size() + batch.size());
 
-    for (auto &pkt : batch) {
-        m_all.push_back(pkt);
-        if (matchesFilter(pkt))
-            newFiltered.push_back(base + int(newFiltered.size()));
+    for (int i = 0; i < int(batch.size()); ++i) {
+        m_all.push_back(batch[i]);
+        if (matchesFilter(batch[i]))
+            newFiltered.push_back(base + i);
     }
 
     if (!newFiltered.empty()) {
@@ -96,6 +96,7 @@ void PacketListModel::appendBatch(const std::vector<DissectedPacket> &batch)
 
 void PacketListModel::clear()
 {
+    m_filter.clear();
     beginResetModel();
     m_all.clear();
     m_filtered.clear();

@@ -49,6 +49,11 @@ Item {
         onTriggered: appController.setDisplayFilter(filterInput.text)
     }
 
+    onVisibleChanged: {
+        if (visible && packetList.stickToBottom)
+            Qt.callLater(packetList.positionViewAtEnd)
+    }
+
     // ── Top toolbar ──────────────────────────────────────────────────────────
     Rectangle {
         id: toolbar
@@ -161,6 +166,8 @@ Item {
                 MouseArea {
                     id: clearMa; anchors.fill: parent; hoverEnabled: true
                     onClicked: {
+                        filterInput.text = ""
+                        filterDebounce.stop()
                         appController.clearPackets()
                         root.runSearch("")
                     }
@@ -278,7 +285,7 @@ Item {
                 cacheBuffer: 1200
 
                 property bool stickToBottom: true
-                onCountChanged:    if (stickToBottom) Qt.callLater(() => packetList.positionViewAtEnd())
+                onCountChanged:    if (stickToBottom && root.visible) Qt.callLater(positionViewAtEnd)
                 onMovementStarted: stickToBottom = false
                 onAtYEndChanged:   if (atYEnd) stickToBottom = true
 
