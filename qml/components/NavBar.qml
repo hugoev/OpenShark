@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls.Basic
 import OpenShark
 
 Rectangle {
@@ -52,6 +51,32 @@ Rectangle {
                 height: root.height
 
                 readonly property bool isActive: root.currentPage === index
+                property bool showTooltip: false
+
+                // Custom tooltip pill — floats above the nav bar
+                Rectangle {
+                    visible: tabItem.showTooltip
+                    opacity: visible ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
+
+                    x: (parent.width - width) / 2
+                    y: -height - 10
+                    width:  tipLabel.implicitWidth + 20
+                    height: 26
+                    radius: 13
+                    z:      100
+                    color:  Theme.bgCard
+                    border.color: Theme.borderSubtle
+                    border.width: 1
+
+                    Text {
+                        id: tipLabel
+                        anchors.centerIn: parent
+                        text:  modelData.label
+                        color: Theme.accentCyan
+                        font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS; weight: Font.Medium }
+                    }
+                }
 
                 // Hover fill
                 Rectangle {
@@ -72,12 +97,11 @@ Rectangle {
                     Behavior on color { ColorAnimation { duration: Theme.animFast } }
                 }
 
-                // Tooltip with page name
-                ToolTip {
-                    visible:  tabMa.containsMouse
-                    text:     modelData.label
-                    delay:    500
-                    timeout:  3000
+                // Delay timer — shows tooltip 450 ms after mouse enters
+                Timer {
+                    id: hoverTimer
+                    interval: 450
+                    onTriggered: tabItem.showTooltip = true
                 }
 
                 transform: Scale {
@@ -94,6 +118,8 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked:    root.pageSelected(index)
+                    onEntered:    hoverTimer.start()
+                    onExited:     { hoverTimer.stop(); tabItem.showTooltip = false }
                 }
             }
         }
