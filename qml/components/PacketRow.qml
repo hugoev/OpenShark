@@ -36,6 +36,13 @@ Item {
         Behavior on color        { ColorAnimation { duration: Theme.animFast } }
         Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
 
+        MouseArea {
+            id: rowMa
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked:    root.clicked()
+        }
+
         RowLayout {
             anchors { fill: parent; leftMargin: 12; rightMargin: 8 }
             spacing: 12
@@ -111,13 +118,6 @@ Item {
                     }
                 }
             }
-        }
-
-        MouseArea {
-            id: rowMa
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked:    root.clicked()
         }
     }
 }

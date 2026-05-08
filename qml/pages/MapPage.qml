@@ -156,6 +156,7 @@ Item {
                 nodes = next
                 edges = me
                 requestPaint()
+                simTimer.restart()
             }
 
             function stepSimulation() {
@@ -188,6 +189,7 @@ Item {
                 }
 
                 var cx = width / 2, cy = height / 2
+                var totalKE = 0
                 for (var n = 0; n < nodes.length; n++) {
                     if (nodes[n].pinned) { nodes[n].vx = 0; nodes[n].vy = 0; continue }
                     nodes[n].vx += (cx - nodes[n].x) * 0.002 * dt
@@ -197,8 +199,10 @@ Item {
                     nodes[n].y  += nodes[n].vy
                     nodes[n].x = Math.max(30, Math.min(width  - 30, nodes[n].x))
                     nodes[n].y = Math.max(30, Math.min(height - 30, nodes[n].y))
+                    totalKE += nodes[n].vx * nodes[n].vx + nodes[n].vy * nodes[n].vy
                 }
                 requestPaint()
+                if (totalKE < 0.08) simTimer.stop()
             }
 
             onPaint: {
@@ -278,7 +282,7 @@ Item {
         Timer {
             id: simTimer
             interval: 33; repeat: true
-            running:  appController.networkMap.nodeCount > 0
+            running:  appController.networkMap.nodeCount > 0 && root.visible
             onTriggered: mapCanvas.stepSimulation()
         }
 
@@ -369,14 +373,17 @@ Item {
                     mapCanvas.offsetY = mapArea.panOffY0 + (mouse.y - mapArea.panStartY)
                 }
 
-                // Hover
+                // Hover — only repaint if the hovered node changed
                 var hw = mapCanvas.toWorld(mouse.x, mouse.y)
                 var hn = mapCanvas.nodeAt(hw.x, hw.y)
-                mapArea.hoveredIp   = hn ? hn.ip   : ""
-                mapArea.hoveredNode = hn ? hn : null
+                var newIp = hn ? hn.ip : ""
                 nodeTooltip.tooltipX = mouse.x
                 nodeTooltip.tooltipY = mouse.y
-                mapCanvas.requestPaint()
+                if (newIp !== mapArea.hoveredIp) {
+                    mapArea.hoveredIp   = newIp
+                    mapArea.hoveredNode = hn
+                    mapCanvas.requestPaint()
+                }
             }
 
             onReleased: (mouse) => {

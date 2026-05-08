@@ -43,6 +43,12 @@ Item {
         packetList.positionViewAtIndex(searchMatches[currentMatch], ListView.Center)
     }
 
+    Timer {
+        id: filterDebounce
+        interval: 280
+        onTriggered: appController.setDisplayFilter(filterInput.text)
+    }
+
     // ── Top toolbar ──────────────────────────────────────────────────────────
     Rectangle {
         id: toolbar
@@ -88,7 +94,7 @@ Item {
                         visible: !filterInput.text && !filterInput.activeFocus
                     }
 
-                    onTextChanged: appController.setDisplayFilter(text)
+                    onTextChanged: filterDebounce.restart()
                 }
             }
 
