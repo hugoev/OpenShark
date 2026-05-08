@@ -6,27 +6,54 @@ import OpenShark
 Item {
     id: root
 
+    readonly property var protoColors: ({
+        "TCP":"#2979ff","UDP":"#00bcd4","TLS":"#7c4dff",
+        "DNS":"#ff9100","HTTP":"#00c853","ICMP":"#e31937",
+        "ICMPv6":"#f44336","ARP":"#ff6d00","???":"#616161"
+    })
+
     ScrollView {
         anchors.fill: parent
         contentWidth: availableWidth
 
         Column {
-            width: parent.width
+            width:   parent.width
             spacing: Theme.spacingLG
             padding: Theme.spacingLG
 
-            // ── Big numbers ───────────────────────────────────────────────
+            // ── 4 big-number tiles ────────────────────────────────────────
             RowLayout {
-                width: parent.width - Theme.spacingLG * 2
+                width:   parent.width - Theme.spacingLG * 2
                 spacing: Theme.spacingSM
 
-                StatBigNumber { Layout.fillWidth: true; label: "Packets";  value: appController.stats.totalPackets.toLocaleString() }
-                StatBigNumber { Layout.fillWidth: true; label: "Bytes";    value: formatBytes(appController.stats.totalBytes) }
+                StatBigNumber {
+                    Layout.fillWidth: true
+                    label: "Packets"
+                    value: appController.stats.totalPackets.toLocaleString()
+                }
+                StatBigNumber {
+                    Layout.fillWidth: true
+                    label: "Bytes"
+                    value: formatBytes(appController.stats.totalBytes)
+                }
+                StatBigNumber {
+                    Layout.fillWidth: true
+                    label: "Packets / sec"
+                    value: {
+                        var s = appController.stats.throughputSamples
+                        return s.length > 0 ? s[s.length - 1].packets.toLocaleString() : "0"
+                    }
+                }
+                StatBigNumber {
+                    Layout.fillWidth: true
+                    label: "Protocols"
+                    value: appController.stats.protocolCounts.length.toString()
+                }
             }
 
             // ── Throughput chart ──────────────────────────────────────────
             Rectangle {
-                width: parent.width - Theme.spacingLG * 2
+                width:  parent.width - Theme.spacingLG * 2
                 height: 180
                 radius: Theme.radius
                 color:  Theme.bgCard
@@ -34,14 +61,14 @@ Item {
 
                 Text {
                     anchors { top: parent.top; left: parent.left; margins: Theme.spacingSM }
-                    text:  "Throughput (bytes/sec)"
+                    text:  "Throughput  (bytes / sec)"
                     color: Theme.textMuted
                     font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
                 }
 
                 Canvas {
                     id: throughputChart
-                    anchors { fill: parent; margins: 1; topMargin: 24; bottomMargin: 8 }
+                    anchors { fill: parent; margins: 1; topMargin: 28; bottomMargin: 10 }
 
                     Connections {
                         target: appController.stats
@@ -64,24 +91,24 @@ Item {
                         // Grid lines
                         ctx.strokeStyle = Theme.borderSubtle
                         ctx.lineWidth   = 1
-                        for (var g = 0; g < 4; g++) {
-                            var gy = pad + (height - pad * 2) * g / 3
+                        for (var g = 1; g <= 3; g++) {
+                            var gy = pad + (height - pad * 2) * (1 - g / 3)
                             ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(width, gy); ctx.stroke()
                         }
 
-                        // Fill
+                        // Fill gradient
                         ctx.beginPath()
                         ctx.moveTo(0, height)
                         for (var j = 0; j < n; j++) {
                             var x = j / (n - 1) * width
                             var y = pad + (1 - samples[j].bytes / maxVal) * (height - pad * 2)
-                            if (j === 0) ctx.lineTo(x, y)
-                            else         ctx.lineTo(x, y)
+                            j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
                         }
-                        ctx.lineTo(width, height)
+                        ctx.lineTo((n - 1) / (n - 1) * width, height)
+                        ctx.lineTo(0, height)
                         ctx.closePath()
                         var grad = ctx.createLinearGradient(0, 0, 0, height)
-                        grad.addColorStop(0, Qt.rgba(0, 0.83, 1, 0.5))
+                        grad.addColorStop(0, Qt.rgba(0, 0.83, 1, 0.45))
                         grad.addColorStop(1, Qt.rgba(0, 0.83, 1, 0.02))
                         ctx.fillStyle = grad
                         ctx.fill()
@@ -100,35 +127,32 @@ Item {
                 }
             }
 
-            // ── Protocol breakdown + top talkers ──────────────────────────
+            // ── Protocol breakdown + Top Talkers ──────────────────────────
             RowLayout {
-                width: parent.width - Theme.spacingLG * 2
+                width:   parent.width - Theme.spacingLG * 2
                 spacing: Theme.spacingSM
 
-                // Protocol donut
+                // Protocol donut + QML legend
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 240
+                    height: 260
                     radius: Theme.radius
                     color:  Theme.bgCard
                     border.color: Theme.borderSubtle; border.width: 1
 
                     Text {
+                        id: protoTitle
                         anchors { top: parent.top; left: parent.left; margins: Theme.spacingSM }
-                        text: "Protocol Breakdown"
+                        text:  "Protocol Breakdown"
                         color: Theme.textMuted
                         font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
                     }
 
+                    // Donut (left half)
                     Canvas {
                         id: donutChart
-                        anchors { fill: parent; margins: 1; topMargin: 24 }
-
-                        readonly property var protoColors: ({
-                            "TCP":"#2979ff","UDP":"#00bcd4","TLS":"#7c4dff",
-                            "DNS":"#ff9100","HTTP":"#00c853","ICMP":"#e31937",
-                            "ICMPv6":"#f44336","ARP":"#ff6d00","???":"#616161"
-                        })
+                        anchors { top: protoTitle.bottom; left: parent.left; bottom: parent.bottom; topMargin: 4 }
+                        width: parent.width * 0.52
 
                         Connections {
                             target: appController.stats
@@ -145,89 +169,143 @@ Item {
                             for (var i = 0; i < data.length; i++) total += data[i].count
                             if (total === 0) return
 
-                            var cx = width * 0.38, cy = height / 2
-                            var R = Math.min(cx, cy) - 16, r = R * 0.55
+                            var cx    = width / 2
+                            var cy    = height / 2
+                            var R     = Math.min(cx, cy) - 12
+                            var r     = R * 0.54
                             if (R <= 0) return
-                            var angle = -Math.PI / 2
 
+                            var angle = -Math.PI / 2
                             for (var j = 0; j < data.length && j < 8; j++) {
                                 var sweep = (data[j].count / total) * Math.PI * 2
-                                var color = protoColors[data[j].protocol] || "#616161"
                                 ctx.beginPath()
                                 ctx.moveTo(cx, cy)
                                 ctx.arc(cx, cy, R, angle, angle + sweep)
                                 ctx.closePath()
-                                ctx.fillStyle = color
+                                ctx.fillStyle = root.protoColors[data[j].protocol] || "#616161"
                                 ctx.fill()
                                 angle += sweep
                             }
 
-                            // Donut hole
-                            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2)
+                            // Hole
+                            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
                             ctx.fillStyle = Theme.bgCard; ctx.fill()
 
-                            // Center label
-                            ctx.fillStyle = Theme.textPrimary
-                            ctx.font = "bold 14px Inter, sans-serif"
-                            ctx.textAlign = "center"
+                            // Center text
+                            ctx.fillStyle  = Theme.textPrimary
+                            ctx.font       = "bold 13px Inter, sans-serif"
+                            ctx.textAlign  = "center"
                             ctx.fillText(total.toLocaleString(), cx, cy + 5)
-                            ctx.fillStyle = Theme.textMuted
-                            ctx.font = "10px Inter, sans-serif"
+                            ctx.fillStyle  = Theme.textMuted
+                            ctx.font       = "10px Inter, sans-serif"
                             ctx.fillText("packets", cx, cy + 18)
-                            ctx.textAlign = "start"
+                            ctx.textAlign  = "start"
+                        }
+                    }
 
-                            // Legend
-                            var legX = width * 0.64, legY = 16, legH = 18
-                            for (var l = 0; l < data.length && l < 8; l++) {
-                                var c2 = protoColors[data[l].protocol] || "#616161"
-                                ctx.fillStyle = c2
-                                ctx.fillRect(legX, legY + l*legH, 10, 10)
-                                ctx.fillStyle = Theme.textSecond
-                                ctx.font = "10px Inter, sans-serif"
-                                ctx.fillText(data[l].protocol + " " +
-                                    Math.round(data[l].count/total*100) + "%",
-                                    legX + 14, legY + l*legH + 9)
+                    // Legend (right half, QML)
+                    Column {
+                        anchors {
+                            top: protoTitle.bottom; topMargin: 8
+                            left: donutChart.right; leftMargin: 4
+                            right: parent.right; rightMargin: Theme.spacingSM
+                            bottom: parent.bottom; bottomMargin: Theme.spacingSM
+                        }
+                        spacing: 5
+
+                        Repeater {
+                            model: {
+                                var d = appController.stats.protocolCounts
+                                return d.length > 8 ? d.slice(0, 8) : d
+                            }
+
+                            Row {
+                                spacing: 7
+                                width: parent.width
+
+                                Rectangle {
+                                    width: 8; height: 8; radius: 2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: root.protoColors[modelData.protocol] || "#616161"
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text:  modelData.protocol
+                                    color: Theme.textPrimary
+                                    font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
+                                    width: 48
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: {
+                                        var total = 0
+                                        var d = appController.stats.protocolCounts
+                                        for (var i = 0; i < d.length; i++) total += d[i].count
+                                        return total > 0
+                                               ? Math.round(modelData.count / total * 100) + "%"
+                                               : "0%"
+                                    }
+                                    color: Theme.textMuted
+                                    font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
+                                }
                             }
                         }
                     }
                 }
 
-                // Top talkers
+                // Top Talkers with bars
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 240
+                    height: 260
                     radius: Theme.radius
                     color:  Theme.bgCard
                     border.color: Theme.borderSubtle; border.width: 1
 
                     Column {
                         anchors { fill: parent; margins: Theme.spacingSM }
-                        spacing: 4
+                        spacing: 0
 
                         Text {
-                            text: "Top Talkers"
+                            text:  "Top Talkers"
                             color: Theme.textMuted
                             font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
-                            bottomPadding: 4
+                            bottomPadding: 8
                         }
 
                         Repeater {
                             model: appController.stats.topTalkers
 
                             Item {
-                                width: parent.width
-                                height: 20
+                                width:  parent.width
+                                height: 28
 
-                                Text {
-                                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                                    text:  modelData.ip
-                                    color: Theme.textPrimary
-                                    font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeXS }
-                                    width: parent.width * 0.6; elide: Text.ElideRight
+                                // Progress bar track
+                                Rectangle {
+                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; bottomMargin: 2 }
+                                    height: 3; radius: 1
+                                    color: Theme.borderSubtle
+                                }
+                                // Progress bar fill
+                                Rectangle {
+                                    anchors { left: parent.left; bottom: parent.bottom; bottomMargin: 2 }
+                                    height: 3; radius: 1
+                                    width: {
+                                        var talkers = appController.stats.topTalkers
+                                        var max = talkers.length > 0 ? talkers[0].bytes : 1
+                                        return max > 0 ? parent.width * (modelData.bytes / max) : 0
+                                    }
+                                    color: Qt.rgba(0, 0.83, 1, 0.55)
                                 }
 
                                 Text {
-                                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                    anchors { left: parent.left; top: parent.top; topMargin: 2 }
+                                    text:  modelData.ip
+                                    color: Theme.textPrimary
+                                    font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeXS }
+                                    width: parent.width * 0.58; elide: Text.ElideRight
+                                }
+                                Text {
+                                    anchors { right: parent.right; top: parent.top; topMargin: 2 }
                                     text:  formatBytes(modelData.bytes)
                                     color: Theme.textMuted
                                     font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
@@ -242,8 +320,8 @@ Item {
 
     function formatBytes(b) {
         if (b < 1024)       return b + " B"
-        if (b < 1048576)    return (b/1024).toFixed(1)   + " KB"
-        if (b < 1073741824) return (b/1048576).toFixed(1) + " MB"
-        return (b/1073741824).toFixed(2) + " GB"
+        if (b < 1048576)    return (b / 1024).toFixed(1)    + " KB"
+        if (b < 1073741824) return (b / 1048576).toFixed(1) + " MB"
+        return (b / 1073741824).toFixed(2) + " GB"
     }
 }
