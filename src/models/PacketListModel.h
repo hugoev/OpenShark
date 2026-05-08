@@ -22,6 +22,7 @@ public:
         LengthRole,
         SummaryRole,
         BookmarkedRole,
+        InfoRole,
     };
 
     explicit PacketListModel(QObject *parent = nullptr);
@@ -47,6 +48,7 @@ signals:
 private:
     bool matchesFilter(const DissectedPacket &pkt) const;
     static QString protocolColor(Protocol p);
+    static QString infoString(const DissectedPacket &pkt);
 
     std::vector<DissectedPacket>  m_all;       // all captured
     std::vector<int>              m_filtered;  // indices into m_all passing display filter

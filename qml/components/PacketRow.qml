@@ -4,16 +4,19 @@ import OpenShark
 
 Item {
     id: root
-    height: 44
+    height: 54
 
-    // Required so ListView injects model roles (and the row index) into this component
     required property int    index
     required property string timestamp
     required property string protocol
     required property string protocolColor
-    required property string summary
+    required property string srcIp
+    required property string dstIp
+    required property int    srcPort
+    required property int    dstPort
     required property int    length
     required property bool   bookmarked
+    required property string info
 
     property bool selected:    false
     property bool searchMatch: false
@@ -40,23 +43,46 @@ Item {
             Text {
                 text:  root.timestamp
                 color: Theme.textMuted
-                font.family:    "Menlo, Courier, monospace"
-                font.pixelSize: Theme.fontSizeXS
+                font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeXS }
                 Layout.preferredWidth: 90
+                Layout.alignment: Qt.AlignVCenter
             }
 
             ProtocolBadge {
                 protocol:   root.protocol
                 badgeColor: root.protocolColor
                 Layout.preferredWidth: 56
+                Layout.alignment: Qt.AlignVCenter
             }
 
-            Text {
-                text:  root.summary
-                color: Theme.textPrimary
-                font { family: Theme.fontFamily; pixelSize: Theme.fontSizeSM }
+            // Two-line center: endpoint addresses + info
+            Column {
                 Layout.fillWidth: true
-                elide: Text.ElideRight
+                Layout.alignment: Qt.AlignVCenter
+                spacing: 3
+
+                Text {
+                    width: parent.width
+                    text: {
+                        var s = root.srcIp
+                        var d = root.dstIp
+                        if (root.srcPort > 0) s += ":" + root.srcPort
+                        if (root.dstPort > 0) d += ":" + root.dstPort
+                        return s + "  →  " + d
+                    }
+                    color: Theme.textPrimary
+                    font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeSM }
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    width: parent.width
+                    text:  root.info
+                    color: Theme.textSecond
+                    font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
+                    elide: Text.ElideRight
+                    visible: root.info.length > 0
+                }
             }
 
             Text {
@@ -64,15 +90,16 @@ Item {
                 color: Theme.textMuted
                 font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
                 Layout.preferredWidth: 52
-                horizontalAlignment:   Text.AlignRight
+                Layout.alignment: Qt.AlignVCenter
+                horizontalAlignment: Text.AlignRight
             }
 
-            // Bookmark toggle
             Text {
                 text:    root.bookmarked ? "★" : "☆"
                 color:   root.bookmarked ? "#ffd740" : Theme.textMuted
                 font.pixelSize: 14
                 Layout.preferredWidth: 20
+                Layout.alignment: Qt.AlignVCenter
                 horizontalAlignment: Text.AlignHCenter
                 Behavior on color { ColorAnimation { duration: Theme.animFast } }
 

@@ -31,6 +31,7 @@ QHash<int, QByteArray> PacketListModel::roleNames() const
         {LengthRole,        "length"},
         {SummaryRole,       "summary"},
         {BookmarkedRole,    "bookmarked"},
+        {InfoRole,          "info"},
     };
 }
 
@@ -58,6 +59,7 @@ QVariant PacketListModel::data(const QModelIndex &index, int role) const
     case ProtocolColorRole: return protocolColor(pkt.topProtocol);
     case LengthRole:        return pkt.length;
     case BookmarkedRole:    return m_bookmarks.count(pkt.id) > 0;
+    case InfoRole:          return infoString(pkt);
     case SummaryRole: {
         QString src = QString::fromStdString(pkt.srcIp);
         QString dst = QString::fromStdString(pkt.dstIp);
@@ -177,8 +179,9 @@ bool PacketListModel::matchesFilter(const DissectedPacket &pkt) const
         if (auto r = check(key, val); r.has_value()) return *r;
     }
 
-    // Fallback: substring match across src/dst IPs and protocol name
-    QString haystack = QString::fromStdString(pkt.srcIp + " " + pkt.dstIp + " " + protocolName(pkt.topProtocol));
+    // Fallback: substring match across src/dst IPs, protocol name, and info string
+    QString haystack = QString::fromStdString(pkt.srcIp + " " + pkt.dstIp + " " + protocolName(pkt.topProtocol))
+                       + " " + infoString(pkt);
     return haystack.contains(f, Qt::CaseInsensitive);
 }
 
@@ -271,11 +274,132 @@ QVariantList PacketListModel::searchAll(const QString &query) const
                            QString::fromStdString(pkt.dstIp) + " " +
                            QString::number(pkt.srcPort) + " " +
                            QString::number(pkt.dstPort) + " " +
-                           QString(protocolName(pkt.topProtocol));
+                           QString(protocolName(pkt.topProtocol)) + " " +
+                           infoString(pkt);
         if (haystack.contains(q, Qt::CaseInsensitive))
             result.append(i);
     }
     return result;
+}
+
+QString PacketListModel::infoString(const DissectedPacket &pkt)
+{
+    auto fieldOf = [&](Protocol proto, const char *name) -> std::string {
+        for (const auto &layer : pkt.layers) {
+            if (layer.protocol != proto) continue;
+            for (const auto &f : layer.fields)
+                if (f.name == name) return f.value;
+        }
+        return {};
+    };
+
+    auto tcpServiceName = [](uint16_t p) -> const char* {
+        switch (p) {
+        case 21:   return "FTP";
+        case 22:   return "SSH";
+        case 23:   return "Telnet";
+        case 25:   return "SMTP";
+        case 53:   return "DNS";
+        case 80:   return "HTTP";
+        case 110:  return "POP3";
+        case 143:  return "IMAP";
+        case 443:  return "HTTPS";
+        case 993:  return "IMAPS";
+        case 995:  return "POP3S";
+        case 3306: return "MySQL";
+        case 5432: return "PostgreSQL";
+        case 8080: return "HTTP-Alt";
+        case 8443: return "HTTPS-Alt";
+        default:   return nullptr;
+        }
+    };
+
+    switch (pkt.topProtocol) {
+
+    case Protocol::TLS: {
+        std::string ht  = fieldOf(Protocol::TLS, "Handshake Type");
+        std::string sni = fieldOf(Protocol::TLS, "SNI");
+        std::string ct  = fieldOf(Protocol::TLS, "Content Type");
+        std::string ver = fieldOf(Protocol::TLS, "Version");
+        if (!ht.empty()) {
+            QString r = QString::fromStdString(ht);
+            if (!sni.empty()) r += " · " + QString::fromStdString(sni);
+            return r;
+        }
+        if (ct == "Application Data") {
+            if (!ver.empty()) return "Application Data [" + QString::fromStdString(ver) + "]";
+            return "Application Data";
+        }
+        if (!ct.empty()) return QString::fromStdString(ct);
+        return {};
+    }
+
+    case Protocol::DNS: {
+        std::string type  = fieldOf(Protocol::DNS, "Type");
+        std::string qname = fieldOf(Protocol::DNS, "Query Name");
+        if (!qname.empty())
+            return QString::fromStdString(type) + " " + QString::fromStdString(qname);
+        return QString::fromStdString(type);
+    }
+
+    case Protocol::HTTP: {
+        std::string first = fieldOf(Protocol::HTTP, "First Line");
+        return QString::fromStdString(first);
+    }
+
+    case Protocol::TCP: {
+        std::string flags = fieldOf(Protocol::TCP, "Flags");
+        const char *svc = tcpServiceName(pkt.dstPort);
+        if (!svc) svc = tcpServiceName(pkt.srcPort);
+        QString r = QString::fromStdString(flags);
+        if (svc) r += " · " + QString(svc);
+        return r;
+    }
+
+    case Protocol::UDP: {
+        auto udpServiceName = [](uint16_t p) -> const char* {
+            switch (p) {
+            case 53:   return "DNS";
+            case 67:   return "DHCP";
+            case 68:   return "DHCP";
+            case 123:  return "NTP";
+            case 137:  return "NetBIOS-NS";
+            case 138:  return "NetBIOS";
+            case 161:  return "SNMP";
+            case 443:  return "QUIC";
+            case 500:  return "IKE";
+            case 1900: return "SSDP";
+            case 5353: return "mDNS";
+            default:   return nullptr;
+            }
+        };
+        const char *svc = udpServiceName(pkt.dstPort);
+        if (!svc) svc = udpServiceName(pkt.srcPort);
+        if (svc) return QString(svc);
+        return QString("%1 → %2").arg(pkt.srcPort).arg(pkt.dstPort);
+    }
+
+    case Protocol::ICMP: {
+        std::string type = fieldOf(Protocol::ICMP, "Type");
+        return QString::fromStdString(type);
+    }
+
+    case Protocol::ICMPv6: {
+        std::string type = fieldOf(Protocol::ICMPv6, "Type");
+        if (!type.empty()) return "ICMPv6 Type " + QString::fromStdString(type);
+        return "ICMPv6";
+    }
+
+    case Protocol::ARP: {
+        std::string op = fieldOf(Protocol::ARP, "Operation");
+        if (op == "Request")
+            return "Who has " + QString::fromStdString(pkt.dstIp) + "?";
+        return QString::fromStdString(pkt.srcIp) + " is at " + QString::fromStdString(pkt.srcMac);
+    }
+
+    default:
+        return {};
+    }
 }
 
 QString PacketListModel::protocolColor(Protocol p)
