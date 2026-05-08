@@ -1,0 +1,15 @@
+# Build artifacts
+build/
+
+# macOS / packaging output
+.DS_Store
+*.app
+*.dmg
+
+# Local editor / agent settings
+.claude/settings.local.json
+
+# Qt / CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
