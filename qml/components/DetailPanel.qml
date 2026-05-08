@@ -29,7 +29,7 @@ Item {
         }
 
         RowLayout {
-            anchors.fill: parent
+            anchors { fill: parent; topMargin: Theme.spacingSM }
             spacing: 0
 
             // ── Layer / field tree (left pane) ─────────────────────────────
@@ -133,7 +133,12 @@ Item {
             }
 
             // Vertical divider
-            Rectangle { Layout.fillHeight: true; width: 1; color: Theme.borderSubtle }
+            Rectangle {
+                Layout.fillHeight: true
+                Layout.topMargin:    Theme.spacingSM
+                Layout.bottomMargin: Theme.spacingSM
+                width: 1; color: Theme.borderSubtle
+            }
 
             // ── Hex view (right pane) ──────────────────────────────────────
             Item {
@@ -143,7 +148,7 @@ Item {
                 // Header strip
                 Rectangle {
                     id: hexHeader
-                    anchors { top: parent.top; left: parent.left; right: parent.right }
+                    anchors { top: parent.top; left: parent.left; right: parent.right; topMargin: Theme.spacingSM }
                     height: 24
                     color: Theme.bgCard
 
