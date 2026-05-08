@@ -321,8 +321,9 @@ Item {
     Popup {
         id: ifacePicker
         anchors.centerIn: Overlay.overlay
-        width:  360
-        modal:  true
+        width:   420
+        padding: 0
+        modal:   true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
@@ -333,41 +334,87 @@ Item {
         }
 
         contentItem: Column {
-            spacing: Theme.spacingSM
-            padding: Theme.spacingLG
+            width:   ifacePicker.width
+            spacing: 0
 
-            Text {
-                text:  "Select Interface"
-                color: Theme.textPrimary
-                font { family: Theme.fontFamily; pixelSize: Theme.fontSizeLG; weight: Font.DemiBold }
+            // ── Header ────────────────────────────────────────────────────────
+            Item {
+                width:  parent.width
+                height: 56
+
+                Text {
+                    anchors { left: parent.left; leftMargin: Theme.spacingLG; verticalCenter: parent.verticalCenter }
+                    text:  "Select Interface"
+                    color: Theme.textPrimary
+                    font { family: Theme.fontFamily; pixelSize: Theme.fontSizeLG; weight: Font.DemiBold }
+                }
+
+                Rectangle {
+                    anchors { right: parent.right; rightMargin: Theme.spacingMD; verticalCenter: parent.verticalCenter }
+                    width: 28; height: 28; radius: 14
+                    color: closeIfMa.containsMouse ? Theme.bgCardHover : "transparent"
+                    Behavior on color { ColorAnimation { duration: Theme.animFast } }
+                    Text { anchors.centerIn: parent; text: "✕"; color: Theme.textMuted; font.pixelSize: 12 }
+                    MouseArea { id: closeIfMa; anchors.fill: parent; hoverEnabled: true; onClicked: ifacePicker.close() }
+                }
+
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: 1; color: Theme.borderSubtle
+                }
             }
 
+            // ── Interface list ────────────────────────────────────────────────
             ListView {
-                width:  320
-                height: Math.min(contentHeight, 300)
+                id: ifaceListView
+                width:  parent.width
+                height: Math.min(contentHeight + topMargin + bottomMargin, 300)
                 model:  appController.interfaces
                 clip:   true
                 spacing: 4
+                topMargin:    Theme.spacingMD
+                bottomMargin: Theme.spacingMD
+                leftMargin:   Theme.spacingMD
+                rightMargin:  Theme.spacingMD
+
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
+                    contentItem: Rectangle { radius: 3; color: Theme.textMuted; opacity: 0.6 }
+                }
 
                 delegate: Rectangle {
-                    width: parent.width; height: 44
+                    required property string name
+                    required property string description
+
+                    width:  ifaceListView.width - ifaceListView.leftMargin - ifaceListView.rightMargin
+                    height: 50
                     radius: Theme.radiusSM
-                    color:  ifMa.containsMouse ? Theme.bgCardHover : "transparent"
+                    color:  ifMa.containsMouse ? Theme.bgCardHover : Qt.rgba(1, 1, 1, 0.02)
                     border.color: Theme.borderSubtle; border.width: 1
                     Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                     Column {
-                        anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+                        anchors {
+                            left: parent.left; leftMargin: 14
+                            right: parent.right; rightMargin: 14
+                            verticalCenter: parent.verticalCenter
+                        }
+                        spacing: 3
+
                         Text {
+                            width: parent.width
                             text:  name
                             color: Theme.textPrimary
                             font { family: Theme.fontFamily; pixelSize: Theme.fontSizeSM; weight: Font.Medium }
+                            elide: Text.ElideRight
                         }
                         Text {
-                            text:    description !== name ? description : ""
-                            color:   Theme.textMuted
+                            width: parent.width
+                            text:  description !== name ? description : ""
+                            color: Theme.textMuted
                             font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
                             visible: text !== ""
+                            elide: Text.ElideRight
                         }
                     }
 
@@ -381,34 +428,53 @@ Item {
                 }
             }
 
-            // BPF capture filter field
-            Text {
-                text:  "Capture Filter  (BPF syntax)"
-                color: Theme.textMuted
-                font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
-            }
+            // ── BPF filter ────────────────────────────────────────────────────
+            Rectangle { width: parent.width; height: 1; color: Theme.borderSubtle }
 
-            Rectangle {
-                width: 320; height: 34
-                radius: Theme.radiusSM
-                color:  Theme.bgCard
-                border.color: captureFilterInput.activeFocus ? Theme.accentCyan : Theme.borderSubtle
-                border.width: 1
-                Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
+            Item {
+                width:  parent.width
+                height: 78
 
-                TextInput {
-                    id: captureFilterInput
-                    anchors { fill: parent; leftMargin: 10; rightMargin: 10; topMargin: 8; bottomMargin: 8 }
-                    color: Theme.textPrimary
-                    selectionColor: Qt.rgba(0, 0.83, 1, 0.3)
-                    font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeSM }
+                Column {
+                    anchors {
+                        fill: parent
+                        topMargin: Theme.spacingMD; bottomMargin: Theme.spacingMD
+                        leftMargin: Theme.spacingLG; rightMargin: Theme.spacingLG
+                    }
+                    spacing: Theme.spacingSM
 
                     Text {
-                        anchors.fill: parent
-                        text:  "tcp port 443  |  host 10.0.0.1  |  not arp"
+                        text:  "Capture Filter  (BPF syntax)"
                         color: Theme.textMuted
-                        font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeSM }
-                        visible: !parent.text && !parent.activeFocus
+                        font { family: Theme.fontFamily; pixelSize: Theme.fontSizeXS }
+                    }
+
+                    Rectangle {
+                        width:  parent.width
+                        height: 36
+                        radius: Theme.radiusSM
+                        color:  Theme.bgOverlay
+                        border.color: captureFilterInput.activeFocus ? Theme.accentCyan : Theme.borderSubtle
+                        border.width: 1
+                        Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
+
+                        TextInput {
+                            id: captureFilterInput
+                            anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+                            verticalAlignment: TextInput.AlignVCenter
+                            color: Theme.textPrimary
+                            selectionColor: Qt.rgba(0, 0.83, 1, 0.3)
+                            font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeSM }
+
+                            Text {
+                                anchors.fill: parent
+                                verticalAlignment: Text.AlignVCenter
+                                text:  "tcp port 443  |  host 10.0.0.1  |  not arp"
+                                color: Theme.textMuted
+                                font { family: "Menlo, Courier, monospace"; pixelSize: Theme.fontSizeSM }
+                                visible: !parent.text && !parent.activeFocus
+                            }
+                        }
                     }
                 }
             }
