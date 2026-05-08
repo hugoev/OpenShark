@@ -99,14 +99,20 @@ Item {
             }
 
             function nodeAt(wx, wy) {
-                var mp = maxPackets()
+                var mp       = maxPackets()
+                var best     = null
+                var bestDist = Infinity
                 for (var i = 0; i < nodes.length; i++) {
                     var nd = nodes[i]
                     var r  = 10 + (nd.packets / mp) * 20 + 6
                     var dx = nd.x - wx, dy = nd.y - wy
-                    if (dx*dx + dy*dy < r*r) return nd
+                    var d2 = dx*dx + dy*dy
+                    if (d2 < r*r && d2 < bestDist) {
+                        bestDist = d2
+                        best     = nd
+                    }
                 }
-                return null
+                return best
             }
 
             function toWorld(sx, sy) {
