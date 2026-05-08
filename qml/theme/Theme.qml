@@ -32,7 +32,7 @@ QtObject {
     readonly property real radius:       16
     readonly property real radiusSM:      8
     readonly property real radiusXS:      4
-    readonly property real navBarHeight: 72
+    readonly property real navBarHeight: 52
     readonly property real statusHeight: 44
     readonly property real spacing:      16
     readonly property real spacingSM:     8
