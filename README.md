@@ -2,6 +2,10 @@
 
 A Tesla-aesthetic network packet analyzer built with Qt6/QML and libpcap.
 
+![Live capture](assets/live.png)
+
+![Network topology](assets/topology.png)
+
 ## Features
 
 - Live packet capture on any network interface
